@@ -12,6 +12,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   FlutterBlue flutterBlue;
   List<BluetoothDevice> deviceList = new List<BluetoothDevice>();
+  int selectedDeviceIndex = -1;
   String text = "";
   TextEditingController _controller;
   double brightness = 0.0;
@@ -122,7 +123,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   scrollDirection: Axis.vertical,
                   shrinkWrap: true,
                   itemBuilder: (context, index) {
-                    return this.generateTile(this.deviceList.elementAt(index));
+                    return this
+                        .generateTile(this.deviceList.elementAt(index), index);
                   },
                 )
               ],
@@ -148,15 +150,25 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     });
 
-    if (await flutterBlue.isScanning.first) {
-      flutterBlue.stopScan();
+    if (!(await flutterBlue.isScanning.first)) {
+      flutterBlue.startScan();
     }
-    flutterBlue.startScan();
   }
 
-  ListTile generateTile(BluetoothDevice device) {
+  ListTile generateTile(BluetoothDevice device, int index) {
     return (ListTile(
-      title: Text(device.name),
+      title: Text(device.name +
+          " - " +
+          device.id.toString() +
+          " - " +
+          device.type.toString()),
+      selected: index == this.selectedDeviceIndex,
+      selectedTileColor: Colors.purple[100],
+      onTap: () => {
+        setState(() {
+          this.selectedDeviceIndex = index;
+        })
+      },
     ));
   }
 
@@ -175,7 +187,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void getSettings() {
-    this.scan();
+    this.scan(); // TODO: Remove
     this._controller.text = this.text;
     this.setState(() {
       this.text = "";
