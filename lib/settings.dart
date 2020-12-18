@@ -11,7 +11,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   FlutterBlue flutterBlue;
-  StreamSubscription sub;
+  List<BluetoothDevice> deviceList = new List<BluetoothDevice>();
   String text = "";
   TextEditingController _controller;
   double brightness = 0.0;
@@ -21,14 +21,13 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _controller = TextEditingController(text: text);
     flutterBlue = FlutterBlue.instance;
-    scan();
-    getSettings();
-  }
-
-  void dispose() {
-    _controller.dispose();
-    this.sub.cancel();
-    super.dispose();
+    flutterBlue.state.listen((state) {
+      if (state == BluetoothState.off) {
+      } else if (state == BluetoothState.on) {
+        scan();
+      }
+    });
+    // getSettings();
   }
 
   @override
@@ -113,13 +112,18 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ],
                 ),
-                ButtonBar(
-                  children: [
-                    RaisedButton(
-                      onPressed: scan,
-                      child: Text('Try to Refresh'),
-                    )
-                  ],
+              ],
+            ),
+            Column(
+              children: [
+                Text('Bluetooth Devices'),
+                ListView.builder(
+                  itemCount: this.deviceList.length,
+                  scrollDirection: Axis.vertical,
+                  shrinkWrap: true,
+                  itemBuilder: (context, index) {
+                    return this.generateTile(this.deviceList.elementAt(index));
+                  },
                 )
               ],
             ),
@@ -129,26 +133,49 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void scan() {
-    flutterBlue.startScan(timeout: Duration(seconds: 5));
-
-    if (this.sub != null) {
-      this.sub.cancel();
-      this.sub = null;
-    }
-
-    this.sub = flutterBlue.scanResults.listen((results) {
-      for (ScanResult r in results) {
-        print('${r.device.name} found! rssi ${r.rssi}');
+  Future<void> scan() async {
+    flutterBlue.connectedDevices
+        .asStream()
+        .listen((List<BluetoothDevice> devices) {
+      for (BluetoothDevice device in devices) {
+        addDevice(device);
       }
     });
 
-    flutterBlue.stopScan();
+    flutterBlue.scanResults.listen((List<ScanResult> results) {
+      for (ScanResult result in results) {
+        addDevice(result.device);
+      }
+    });
+
+    if (await flutterBlue.isScanning.first) {
+      flutterBlue.stopScan();
+    }
+    flutterBlue.startScan();
   }
 
-  void sendSettings() {}
+  ListTile generateTile(BluetoothDevice device) {
+    return (ListTile(
+      title: Text(device.name),
+    ));
+  }
+
+  void sendSettings() {
+    print(this.text);
+    print(this.speed);
+    print(this.brightness);
+  }
+
+  void addDevice(final BluetoothDevice device) {
+    if (!this.deviceList.contains(device)) {
+      setState(() {
+        this.deviceList.add(device);
+      });
+    }
+  }
 
   void getSettings() {
+    this.scan();
     this._controller.text = this.text;
     this.setState(() {
       this.text = "";
@@ -164,5 +191,6 @@ class _SettingsPageState extends State<SettingsPage> {
       this.speed = 120;
       this.brightness = 1;
     });
+    sendSettings();
   }
 }
